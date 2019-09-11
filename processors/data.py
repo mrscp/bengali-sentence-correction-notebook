@@ -15,18 +15,22 @@ class RawData:
                 self.__config["PROCESS_DATA"]["FILENAME"]
             )
         )
+        i = 0
+        vocabulary = []
+        lines = []
+        with open(data_location, "r") as file:
+            for line in file:
+                if i > int(self.__config["PROCESS_DATA"]["MAX_LINE_READ"]):
+                    break
+                wss = line.strip()
+                ws = wss.split(" ")
 
-        print(data_location)
-        # with open(, "r") as file:
-        #     for line in file:
-        #         if i > config["max_line_read"]:
-        #             break
-        #         wss = line.strip()
-        #         ws = wss.split(" ")
-        #
-        #         vocabulary.extend(ws)
-        #         lines.append(ws)
-        #
-        #         i += 1
-        #         if i % report_point == 0:
-        #             print("{} lines processed".format(i))
+                vocabulary.extend(ws)
+                lines.append(ws)
+
+                i += 1
+                if i % int(self.__config["PROCESS_DATA"]["REPORT_POINT"]) == 0:
+                    print("{} lines processed".format(i))
+
+        return lines, vocabulary
+
