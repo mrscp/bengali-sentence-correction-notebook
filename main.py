@@ -1,6 +1,7 @@
 from processors.data import RawData
 from processors.utils import Normalize, Perturbed
 from common.config import Config
+from common.files import save_np_array
 
 
 class Main:
@@ -19,10 +20,16 @@ class Main:
             )
 
             print("vocabulary size {}/{}".format(len(dictionary), self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+            print(dictionary)
 
             perturbed = Perturbed()
             perturbed.build_dataset(data)
-            print(perturbed.get_data())
+            train_x, train_y, test_x, test_y = perturbed.get_data()
+            print(train_x[:5])
+            save_np_array(train_x, "{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+            save_np_array(train_y, "{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+            save_np_array(test_x, "{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+            save_np_array(test_y, "{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
 
 
 if __name__ == '__main__':

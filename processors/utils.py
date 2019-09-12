@@ -55,12 +55,32 @@ class Perturbed:
         self.__y = []
 
     def add_instance(self, x, y):
+        if int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]) - len(x) > 0:
+            x = np.pad(
+                np.array(x),
+                [(0, int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]) - len(x))],
+                mode='constant',
+                constant_values=1
+            )
+        else:
+            x = np.array(x)
+
+        if (int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]) - len(y)) > 0:
+            y = np.pad(
+                np.array(y),
+                [(0, int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]) - len(y))],
+                mode='constant',
+                constant_values=1
+            )
+        else:
+            y = np.array(y)
+
         for _ in range(randint(
                 int(self.__config["PERTURBATION"]["MIN_REPETITION"]),
                 int(self.__config["PERTURBATION"]["MAX_REPETITION"])
         )):
-            self.__X.append(" ".join(x) + "\n")
-            self.__y.append(" ".join(y) + "\n")
+            self.__X.append(x)
+            self.__y.append(y)
 
     def swap_words(self, sentence):
         length = len(sentence)
@@ -93,10 +113,9 @@ class Perturbed:
         count_normal = 0
 
         for line in data:
-            line = [str(word) for word in line]
             length = len(line)
-            unk = line.count("0")
-            num = line.count("1")
+            unk = line.count(0)
+            num = line.count(2)
             perturbed = False
 
             if (unk+num)/length <= float(self.__config["PROCESS_DATA"]["UNK_CONSIDER"]) \
@@ -111,7 +130,7 @@ class Perturbed:
                     perturbed = True
 
                 if random() >= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
-                    missing_line = self.swap_words(line)
+                    missing_line = self.remove_words(line)
                     self.add_instance(line, missing_line)
 
                     count_missing += 1
@@ -142,4 +161,4 @@ class Perturbed:
         test_y = self.__y[start_index:]
         y = self.__y[:start_index]
 
-        print(len(x), len(test_x))
+        return np.array(x), np.array(y), np.array(test_x), np.array(test_y)
