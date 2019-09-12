@@ -7,7 +7,7 @@ import sys
 class Config(ConfigParser):
     def __init__(self, project_dir=None):
         super().__init__()
-        project_dir = 'content/gdrive/My Drive/ColabData/bengali-sentence-correction-notebook'
+        # project_dir = 'content/gdrive/My Drive/ColabData/bengali-sentence-correction-notebook'
 
         if project_dir:
             self.project_dir = join("/", *project_dir.split("/"))

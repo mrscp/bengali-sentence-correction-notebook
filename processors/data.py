@@ -20,7 +20,7 @@ class RawData:
         lines = []
         with open(data_location, "r") as file:
             for line in file:
-                if i > int(self.__config["PROCESS_DATA"]["MAX_LINE_READ"]):
+                if i > int(self.__config["PROCESS_DATA"]["LIMIT"]):
                     break
                 wss = line.strip()
                 ws = wss.split(" ")
