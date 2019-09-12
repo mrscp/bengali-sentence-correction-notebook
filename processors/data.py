@@ -33,4 +33,3 @@ class RawData:
                     print("{} lines processed".format(i))
 
         return lines, vocabulary
-

@@ -3,6 +3,9 @@ import numpy as np
 import scipy.stats as stat
 from common.config import Config
 from random import random, randint
+from common.files import save_np_array
+from processors.data import RawData
+from tensorflow.keras.utils import to_categorical
 
 
 class Normalize:
@@ -122,14 +125,14 @@ class Perturbed:
                     and int(self.__config["PROCESS_DATA"]["MIN_LINE_LENGTH"]) <= length\
                     < int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]):
 
-                if random() >= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
+                if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
                     swap_line = self.swap_words(line)
                     self.add_instance(line, swap_line)
 
                     count_swap += 1
                     perturbed = True
 
-                if random() >= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
+                if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
                     missing_line = self.remove_words(line)
                     self.add_instance(line, missing_line)
 
@@ -162,3 +165,54 @@ class Perturbed:
         y = self.__y[:start_index]
 
         return np.array(x), np.array(y), np.array(test_x), np.array(test_y)
+
+
+class ProcessData:
+    def __init__(self):
+        self.__config = Config()
+
+        raw_data = RawData()
+        lines, vocabulary = raw_data.get_data()
+
+        normalize = Normalize()
+        data, dictionary, reversed_dictionary, word_frequency = normalize.build_dictionary(
+            lines,
+            vocabulary,
+            int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"])
+        )
+
+        print("vocabulary size {}/{}".format(len(dictionary), self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+        print(dictionary)
+
+        perturbed = Perturbed()
+        perturbed.build_dataset(data)
+        train_x, train_y, test_x, test_y = perturbed.get_data()
+
+        train_target = to_categorical(train_y, num_classes=int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+
+        train_target = train_target.reshape(
+            -1,
+            int(
+                self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]
+            ) * int(
+                self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]
+            )
+        )
+
+        test_target = to_categorical(test_y, num_classes=int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+        test_target = test_target.reshape(
+            -1,
+            int(
+                self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]
+            ) * int(
+                self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]
+            )
+        )
+
+        save_np_array(train_x, "{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+        save_np_array(train_y, "{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+        save_np_array(train_target, "{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+
+        save_np_array(test_x, "{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+        save_np_array(test_y, "{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+        save_np_array(test_target, "{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
