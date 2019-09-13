@@ -21,7 +21,7 @@ class Main:
         if self.__config["GENERAL"]["MODE"] == "process-data":
             ProcessData()
 
-        if self.__config["GENERAL"]["MODE"] == "train":
+        if self.__config["GENERAL"]["MODE"] == "train_words":
             x = load_np_array("{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
             y = load_np_array("{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
             target = load_np_array("{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
@@ -40,7 +40,7 @@ class Main:
 
             model.save_weights(model_path)
 
-        if self.__config["GENERAL"]["MODE"] == "test":
+        if self.__config["GENERAL"]["MODE"] == "test_words":
             x = load_np_array("{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
             y = load_np_array("{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
             target = load_np_array("{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))

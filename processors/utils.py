@@ -3,9 +3,11 @@ import numpy as np
 import scipy.stats as stat
 from common.config import Config
 from random import random, randint
-from common.files import save_np_array
+from common.files import save_np_array, append_np_array
 from processors.data import RawData
 from tensorflow.keras.utils import to_categorical
+import time
+from datetime import timedelta
 
 
 class Normalize:
@@ -168,8 +170,32 @@ class Perturbed:
 
 
 class ProcessData:
+    def one_hot(self, data):
+        one_hot = to_categorical(data, num_classes=int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+        one_hot = one_hot.reshape(
+            -1,
+            int(
+                self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]
+            ) * int(
+                self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]
+            )
+        )
+
+        return one_hot
+
+    def one_hot_batch_save(self, data, location):
+        batch_size = int(self.__config["PROCESS_DATA"]["BATCH_SIZE"])
+        chunks = (len(data) - 1) // batch_size + 1
+        for i in range(chunks):
+            batch = data[i * batch_size:(i + 1) * batch_size]
+            train_target = self.one_hot(batch)
+            append_np_array(train_target, location)
+            print("done {} batch(es)".format(i + 1))
+
     def __init__(self):
         self.__config = Config()
+
+        start_time = time.time()
 
         raw_data = RawData()
         lines, vocabulary = raw_data.get_data()
@@ -188,31 +214,23 @@ class ProcessData:
         perturbed.build_dataset(data)
         train_x, train_y, test_x, test_y = perturbed.get_data()
 
-        train_target = to_categorical(train_y, num_classes=int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+        print("elapsed time {}".format(timedelta(seconds=time.time()-start_time)))
+        print("one hot train_y..")
 
-        train_target = train_target.reshape(
-            -1,
-            int(
-                self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]
-            ) * int(
-                self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]
-            )
-        )
+        self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
 
-        test_target = to_categorical(test_y, num_classes=int(self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
-        test_target = test_target.reshape(
-            -1,
-            int(
-                self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]
-            ) * int(
-                self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]
-            )
-        )
+        print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
+        print("one hot test_y..")
 
+        self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+
+        print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
+        print("saving files..")
         save_np_array(train_x, "{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
         save_np_array(train_y, "{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
-        save_np_array(train_target, "{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
 
         save_np_array(test_x, "{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
         save_np_array(test_y, "{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
-        save_np_array(test_target, "{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+
+        print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
+        print("done")
