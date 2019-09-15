@@ -3,7 +3,7 @@ import numpy as np
 import scipy.stats as stat
 from common.config import Config
 from random import random, randint
-from common.files import save_np_array, append_np_array
+from common.files import save_np_array, append_np_array, list_to_file
 from processors.data import RawData
 from tensorflow.keras.utils import to_categorical
 import time
@@ -38,6 +38,7 @@ class Normalize:
 
         data = list()
         unk_count = 0
+        count_trainable = 0
         for line in lines:
             line_data = list()
             for word in line:
@@ -45,7 +46,19 @@ class Normalize:
                 if index == 0:  # dictionary['UNK']
                     unk_count += 1
                 line_data.append(index)
-            data.append(line_data)
+
+            length = len(line_data)
+            unk = line_data.count(0)
+            num = line_data.count(2)
+
+            if (unk + num) / length <= float(self.__config["PROCESS_DATA"]["UNK_CONSIDER"]) \
+                    and int(self.__config["PROCESS_DATA"]["MIN_LINE_LENGTH"]) <= length \
+                    < int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]):
+                data.append(line_data)
+                count_trainable += 1
+
+        print("trainable lines {}".format(count_trainable))
+
         word_frequency[0][1] = unk_count
         reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
 
@@ -114,44 +127,33 @@ class Perturbed:
         count_missing = 0
         count_swap = 0
         count = 0
-        count_lines = 0
         count_normal = 0
 
         for line in data:
-            length = len(line)
-            unk = line.count(0)
-            num = line.count(2)
             perturbed = False
 
-            if (unk+num)/length <= float(self.__config["PROCESS_DATA"]["UNK_CONSIDER"]) \
-                    and int(self.__config["PROCESS_DATA"]["MIN_LINE_LENGTH"]) <= length\
-                    < int(self.__config["PROCESS_DATA"]["MAX_LINE_LENGTH"]):
+            if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
+                swap_line = self.swap_words(line)
+                self.add_instance(line, swap_line)
 
-                if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
-                    swap_line = self.swap_words(line)
-                    self.add_instance(line, swap_line)
+                count_swap += 1
+                perturbed = True
 
-                    count_swap += 1
-                    perturbed = True
+            if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
+                missing_line = self.remove_words(line)
+                self.add_instance(line, missing_line)
 
-                if random() <= float(self.__config["PERTURBATION"]["SWAP_WORDS_RATE"]):
-                    missing_line = self.remove_words(line)
-                    self.add_instance(line, missing_line)
+                count_missing += 1
+                perturbed = True
 
-                    count_missing += 1
-                    perturbed = True
-
-                if not perturbed:
-                    self.add_instance(line, line)
-                    count_normal += 1
-
-                count_lines += 1
+            if not perturbed:
+                self.add_instance(line, line)
+                count_normal += 1
 
             count += 1
             if count % int(self.__config["PROCESS_DATA"]["REPORT_POINT"]) == 0:
-                print("done {}, lines {}, swap {}, missing {}, normal {}, total {}".format(
+                print("done {}, swap {}, missing {}, normal {}, total {}".format(
                     count,
-                    count_lines,
                     count_swap,
                     count_missing,
                     count_normal,
@@ -208,29 +210,34 @@ class ProcessData:
         )
 
         print("vocabulary size {}/{}".format(len(dictionary), self.__config["PROCESS_DATA"]["VOCABULARY_SIZE"]))
+        print(word_frequency)
         print(dictionary)
 
-        perturbed = Perturbed()
-        perturbed.build_dataset(data)
-        train_x, train_y, test_x, test_y = perturbed.get_data()
+        if self.__config["GENERAL"]["MODEL"] == "WordRelation":
+            list_to_file(data, "{}/vector.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
 
-        print("elapsed time {}".format(timedelta(seconds=time.time()-start_time)))
-        print("one hot train_y..")
+        if self.__config["GENERAL"]["MODE"] == "SEQ@SEQ":
+            perturbed = Perturbed()
+            perturbed.build_dataset(data)
+            train_x, train_y, test_x, test_y = perturbed.get_data()
 
-        self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+            print("elapsed time {}".format(timedelta(seconds=time.time()-start_time)))
+            print("one hot train_y..")
 
-        print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
-        print("one hot test_y..")
+            self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
 
-        self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+            print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
+            print("one hot test_y..")
 
-        print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
-        print("saving files..")
-        save_np_array(train_x, "{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
-        save_np_array(train_y, "{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+            self.one_hot_batch_save(train_y, "{}/target.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
 
-        save_np_array(test_x, "{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
-        save_np_array(test_y, "{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+            print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
+            print("saving files..")
+            save_np_array(train_x, "{}/correct.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+            save_np_array(train_y, "{}/incorrect.txt".format(self.__config["TRAIN"]["DATA_LOCATION"]))
+
+            save_np_array(test_x, "{}/correct.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
+            save_np_array(test_y, "{}/incorrect.txt".format(self.__config["TEST"]["DATA_LOCATION"]))
 
         print("elapsed time {}".format(timedelta(seconds=time.time() - start_time)))
         print("done")
